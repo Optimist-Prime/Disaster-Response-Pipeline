@@ -9,6 +9,13 @@ def load_data(messages_filepath, categories_filepath):
     messages = pd.read_csv(messages_filepath)
     # merge datasets
     df = messages.merge(categories, on='id', how='inner')
+    
+    return df
+
+
+def clean_data(df):
+    # drop duplicates
+    df = df.drop_duplicates()
     # create a dataframe of the 36 individual category columns
     categories = df["categories"].str.split(';', expand=True)
     # select the first row of the categories dataframe
@@ -28,12 +35,6 @@ def load_data(messages_filepath, categories_filepath):
     df.drop('categories', axis=1, inplace = True)
     # concatenate the original dataframe with the new `categories` dataframe
     df = pd.concat([df, categories], axis=1)
-    return df
-
-
-def clean_data(df):
-    # drop duplicates
-    df = df.drop_duplicates()
     return df
     
 
