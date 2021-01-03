@@ -1,46 +1,70 @@
 import sys
-import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
+import numpy as np
 
 def load_data(messages_filepath, categories_filepath):
-    # load dataset
-    categories = pd.read_csv(categories_filepath)
+    '''
+    INPUT
+    file paths of the message and categories files in cvs format
+    OUTPUT
+    a dataframe contains both dataset
+    '''
+
     messages = pd.read_csv(messages_filepath)
-    # merge datasets
-    df = messages.merge(categories, on='id', how='inner')
-    
+    categories = pd.read_csv(categories_filepath)
+    df = pd.merge(messages, categories, how='inner')    
+
     return df
 
 
 def clean_data(df):
-    # drop duplicates
-    df = df.drop_duplicates()
-    # create a dataframe of the 36 individual category columns
-    categories = df["categories"].str.split(';', expand=True)
-    # select the first row of the categories dataframe
-    row = categories.iloc[0,:]
-    # use this row to extract a list of new column names for categories.
-    category_colnames = row.apply(lambda x: x[:-2])
-    # rename the columns of `categories`
-    categories.columns = category_colnames
-        # Convert category values to just numbers 0 or 1.
+    '''
+    INPUT
+    a dataframe with both messages and categories for data cleaning
+    OUTPUT
+    cleaned dataframe, with new expanding columns for each message category
+    '''
+    # Split `categories` into separate category columns
+    categories = df.categories.str.split(';', expand = True)
+    new_names = pd.Series(categories.loc[0].values).str.split('-', expand = True)[0].values
+    new_names = dict(zip(np.arange(categories.shape[0]), new_names))
+    # rename the new splitted columns
+    categories = categories.rename(columns = new_names)
+
+    # Convert category values to just numbers 0 or 1.
     for column in categories:
         # set each value to be the last character of the string
-        categories[column] = categories[column].str[-1]
-        # convert column from string to numeric
-        categories[column] = categories[column].astype(int)
-    categories.replace(2, 1, inplace=True)
-    # drop the original categories column from `df`
-    df.drop('categories', axis=1, inplace = True)
-    # concatenate the original dataframe with the new `categories` dataframe
-    df = pd.concat([df, categories], axis=1)
-    return df
-    
+        # using regex from https://stackoverflow.com/questions/37683558/pandas-extract-number-from-string
+        categories[column] = categories[column].str.extract('(\d+)').astype(int)
 
-def save_data(df, database_filename):
-    engine = create_engine('sqlite:///'+database_filename)
-    df.to_sql('DisasterResponse', engine,if_exists = 'replace', index=False)  
+    # Replace `categories` column in `df` with new category columns
+    df = df.drop(columns = 'categories')
+    df = pd.concat([df, categories], axis = 1)
+
+    # remove duplicated rows
+    df = df.drop_duplicates(subset = 'id')
+    
+    # set labels in the 'related' category from 2 to 0
+    # correcting these mislabels is vital for the ML pipeline processing
+    df.loc[df['related'] > 1,'related'] = 0
+
+    # drop this column with all the labels are 0
+    df = df.drop(columns = 'child_alone')
+
+    return df
+
+def save_data(df, database_filepath):
+    '''
+    INPUT
+    cleaned dataframe and the filepath for the SQL database for saving the dataframe
+    OUTPUT
+    None
+    '''
+    from sqlalchemy import create_engine   
+    engine = create_engine('sqlite:///{}'.format(database_filepath))
+    df.to_sql('RawDataClean', engine, if_exists = 'replace', index=False) 
+    engine.dispose()
+
 
 
 def main():
