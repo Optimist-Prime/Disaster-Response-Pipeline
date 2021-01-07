@@ -1,15 +1,13 @@
 import sys
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import nltk
-import seaborn as sns
 
-from joblib import dump
+# load NLP related modules and files
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
-from shutil import rmtree
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -18,8 +16,12 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import jaccard_score
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-from sqlalchemy import create_engine
+from joblib import dump
+import seaborn as sns
+import matplotlib.pyplot as plt
 from tempfile import mkdtemp
+from shutil import rmtree
+from sqlalchemy import create_engine
 
 try:
     nltk.data.find('tokenizers/punkt')
@@ -51,6 +53,7 @@ def tokenize(text):
     return tokens
 
 class ML_classifier():
+
     def __init__(self, df, upsample = True, split = 0.7):
         '''
         INPUT:
@@ -177,6 +180,7 @@ class ML_classifier():
         '''     
         self.model = self.build_model()
         self.model.fit(self.x_train, self.y_train)
+
     
     def evaluate(self):
         '''
@@ -191,7 +195,9 @@ class ML_classifier():
         self.report = pd.DataFrame(report).transpose()
         
         print('The Jaccard score on the test data set is: {}'.format(self.jaccard_score))
+        print(self.report)
                    
+    
     def plot_dist(self):
         '''
         INPUT:
@@ -226,7 +232,9 @@ class ML_classifier():
         '''        
         dump(self.model, '{}'.format(model_filepath)) 
     
+    
     def __repr__(self):
+    
         '''Function to output the characteristics of the model
         
         INPUT:
